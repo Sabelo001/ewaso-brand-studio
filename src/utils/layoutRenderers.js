@@ -1,4 +1,5 @@
 import { BRAND } from '../theme';
+import { getBaseLayoutId } from '../layouts/registry';
 import { drawWrappedText, drawImageElement } from './exportCanvasHelpers';
 
 export function renderEditorialLayout(ctx, w, h, img, state, drawFooter, helpers) {
@@ -93,18 +94,76 @@ export function renderQuoteLayout(ctx, w, h, _img, state, drawFooter) {
   drawFooter(h * 0.88, bgColorTheme === BRAND.colors.primaryTeal);
 }
 
-const LAYOUT_RENDERERS = {
+export function renderStatisticsLayout(ctx, w, h, img, state, drawFooter, helpers) {
+  const { metaText, headlineText, bodyText1, bodyText2, headerColor, headlineColor, bodyColor, imageSrc } = state;
+  const { zoom, panX, panY, imgOpacity, previewWidth, previewHeight } = helpers;
+
+  drawWrappedText(ctx, metaText.toUpperCase(), w / 2, h * 0.08, w * 0.8, 30, `700 18px ${BRAND.fonts.body}`, headerColor, 'center', '6px');
+  drawWrappedText(ctx, headlineText, w / 2, h * 0.35, w * 0.85, 100, `900 96px ${BRAND.fonts.heading}`, headlineColor, 'center');
+  ctx.fillStyle = headerColor;
+  ctx.fillRect(w / 2 - 60, h * 0.48, 120, 4);
+  let y = drawWrappedText(ctx, bodyText1, w / 2, h * 0.52, w * 0.75, 36, `400 24px ${BRAND.fonts.body}`, bodyColor, 'center');
+  drawWrappedText(ctx, bodyText2, w / 2, y + 10, w * 0.75, 36, `400 22px ${BRAND.fonts.body}`, bodyColor, 'center');
+
+  if (imageSrc) {
+    drawImageElement(ctx, img, w * 0.1, h * 0.72, w * 0.8, h * 0.15, zoom, panX, panY, imgOpacity, previewWidth, previewHeight, 16);
+  }
+
+  drawFooter(h * 0.92, true);
+}
+
+export function renderBeforeAfterLayout(ctx, w, h, img, state, drawFooter, helpers) {
+  const { metaText, headlineText, bodyText1, bodyText2, headerColor, headlineColor, bodyColor, imageSrc } = state;
+  const { zoom, panX, panY, imgOpacity, previewWidth, previewHeight } = helpers;
+
+  drawWrappedText(ctx, metaText.toUpperCase(), w / 2, h * 0.06, w * 0.8, 30, `700 16px ${BRAND.fonts.body}`, headerColor, 'center', '6px');
+  drawWrappedText(ctx, headlineText, w / 2, h * 0.1, w * 0.85, 70, `900 56px ${BRAND.fonts.heading}`, headlineColor, 'center');
+
+  const midY = h * 0.2;
+  const blockH = h * 0.45;
+
+  if (imageSrc) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, midY, w / 2, blockH);
+    ctx.clip();
+    drawImageElement(ctx, img, 0, midY, w / 2, blockH, zoom, panX, panY, imgOpacity * 0.85, previewWidth, previewHeight);
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(w / 2, midY, w / 2, blockH);
+    ctx.clip();
+    drawImageElement(ctx, img, w / 2, midY, w / 2, blockH, zoom * 1.05, panX + 20, panY, imgOpacity, previewWidth, previewHeight);
+    ctx.restore();
+  }
+
+  ctx.strokeStyle = BRAND.colors.sand;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(w / 2, midY);
+  ctx.lineTo(w / 2, midY + blockH);
+  ctx.stroke();
+
+  let y = drawWrappedText(ctx, bodyText1, w / 2, midY + blockH + 40, w * 0.75, 36, `400 24px ${BRAND.fonts.body}`, bodyColor, 'center');
+  drawWrappedText(ctx, bodyText2, w / 2, y + 10, w * 0.75, 36, `italic 400 22px ${BRAND.fonts.heading}`, headerColor, 'center');
+
+  drawFooter(h * 0.92, false);
+}
+
+const BASE_RENDERERS = {
   editorial: renderEditorialLayout,
   split: renderSplitLayout,
   feature: renderFeatureLayout,
   quote: renderQuoteLayout,
+  statistics: renderStatisticsLayout,
+  beforeAfter: renderBeforeAfterLayout,
 };
 
 export function renderLayoutToCanvas(ctx, w, h, img, state, drawFooter, helpers) {
-  const renderer = LAYOUT_RENDERERS[state.layoutId];
-  if (renderer) {
-    renderer(ctx, w, h, img, state, drawFooter, helpers);
-  }
+  const base = getBaseLayoutId(state.layoutId);
+  const renderer = BASE_RENDERERS[base] ?? renderEditorialLayout;
+  renderer(ctx, w, h, img, state, drawFooter, helpers);
 }
 
-export { LAYOUT_RENDERERS };
+export { BASE_RENDERERS as LAYOUT_RENDERERS };
