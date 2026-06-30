@@ -93,6 +93,20 @@ export function LoadingSpinner({ label = 'Loading…' }) {
   );
 }
 
+export function Toast({ toast }) {
+  if (!toast) return null;
+  return (
+    <div
+      key={toast.id}
+      role="status"
+      aria-live="polite"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 rounded-xl bg-[var(--accent-teal)] text-white text-xs font-bold tracking-wider uppercase shadow-lg"
+    >
+      {toast.message}
+    </div>
+  );
+}
+
 export function ProgressBar({ progress, label }) {
   const pct = Math.round(Math.min(100, Math.max(0, progress * 100)));
   return (

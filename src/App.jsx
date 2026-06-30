@@ -1,4 +1,4 @@
-import { useRef, useCallback, useMemo } from 'react';
+import { useRef, useCallback, useMemo, useState, useEffect } from 'react';
 import { useStudioState } from './hooks/useStudioState';
 import { useStudioSettings } from './hooks/useStudioSettings';
 import { useTemplates } from './hooks/useTemplates';
@@ -8,6 +8,7 @@ import { useExport } from './hooks/useExport';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { Sidebar } from './components/sidebar/Sidebar';
 import { CanvasWorkspace } from './components/canvas/CanvasWorkspace';
+import { Toast } from './components/ui';
 
 export default function EwasoBrandStudio() {
   const settings = useStudioSettings();
@@ -17,6 +18,17 @@ export default function EwasoBrandStudio() {
   const canvasView = useCanvasView();
   const previewContainerRef = useRef(null);
   const exportControls = useExport(previewContainerRef);
+  const [toast, setToast] = useState(null);
+
+  const notify = useCallback((message) => {
+    setToast({ message, id: Date.now() });
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 2400);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const handleExport = useCallback(
     (options) => {
@@ -24,6 +36,23 @@ export default function EwasoBrandStudio() {
     },
     [exportControls, studio.exportState]
   );
+
+  // "Duplicate" saves the current design as a reusable template.
+  const handleDuplicate = useCallback(() => {
+    const stamp = new Date().toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    templates.saveTemplate(`Design — ${stamp}`, studio.getSnapshot());
+    notify('Saved to Templates');
+  }, [templates, studio, notify]);
+
+  const handleClearImage = useCallback(() => {
+    studio.clearHeroImage();
+    notify('Image cleared');
+  }, [studio, notify]);
 
   const shortcutHandlers = useMemo(
     () => ({
@@ -37,8 +66,8 @@ export default function EwasoBrandStudio() {
         }),
       onUndo: studio.undo,
       onRedo: studio.redo,
-      onDuplicate: studio.duplicateDesign,
-      onDelete: studio.clearHeroImage,
+      onDuplicate: handleDuplicate,
+      onDelete: handleClearImage,
       onResetView: () => {
         canvasView.resetView();
         studio.imagePan.resetPan();
@@ -47,7 +76,7 @@ export default function EwasoBrandStudio() {
       onZoomIn: canvasView.zoomIn,
       onZoomOut: canvasView.zoomOut,
     }),
-    [handleExport, settings.settings, exportControls.filename, studio, canvasView]
+    [handleExport, settings.settings, exportControls.filename, studio, canvasView, handleDuplicate, handleClearImage]
   );
 
   useKeyboardShortcuts(shortcutHandlers);
@@ -74,9 +103,14 @@ export default function EwasoBrandStudio() {
         previewContainerRef={previewContainerRef}
         canvasView={canvasView}
         settings={settings.settings}
-        onDuplicate={studio.duplicateDesign}
-        onDelete={studio.clearHeroImage}
+        onDuplicate={handleDuplicate}
+        onDelete={handleClearImage}
+        onUndo={studio.undo}
+        onRedo={studio.redo}
+        canUndo={studio.canUndo}
+        canRedo={studio.canRedo}
       />
+      <Toast toast={toast} />
     </div>
   );
 }

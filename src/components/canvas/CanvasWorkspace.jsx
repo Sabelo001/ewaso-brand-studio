@@ -13,6 +13,10 @@ export const CanvasWorkspace = memo(function CanvasWorkspace({
   settings,
   onDuplicate,
   onDelete,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }) {
   const innerRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -44,6 +48,10 @@ export const CanvasWorkspace = memo(function CanvasWorkspace({
           }}
           onDuplicate={onDuplicate}
           onDelete={onDelete}
+          onUndo={onUndo}
+          onRedo={onRedo}
+          canUndo={canUndo}
+          canRedo={canRedo}
         />
       </div>
 

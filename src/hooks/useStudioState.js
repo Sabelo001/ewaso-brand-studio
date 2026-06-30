@@ -203,21 +203,26 @@ export function useStudioState(settings) {
     [getSnapshot, history, setters, imagePan]
   );
 
-  const loadState = useCallback(
+  /** Apply a snapshot to live state WITHOUT touching the history stack. */
+  const applyState = useCallback(
     (state) => {
-      history.pushSnapshot(getSnapshot());
       applyPatch(setters, state);
       if (state.zoom != null) imagePan.setZoom(state.zoom);
       if (state.panX != null) imagePan.setPanX(state.panX);
       if (state.panY != null) imagePan.setPanY(state.panY);
       if (state.imgOpacity != null) imagePan.setImgOpacity(state.imgOpacity);
     },
-    [getSnapshot, history, setters, imagePan]
+    [setters, imagePan]
   );
 
-  const duplicateDesign = useCallback(() => {
-    history.pushSnapshot(getSnapshot());
-  }, [getSnapshot, history]);
+  /** Load an external snapshot (e.g. a template) and record it in history. */
+  const loadState = useCallback(
+    (state) => {
+      history.pushSnapshot(getSnapshot());
+      applyState(state);
+    },
+    [getSnapshot, history, applyState]
+  );
 
   const clearHeroImage = useCallback(() => {
     history.pushSnapshot(getSnapshot());
@@ -226,14 +231,16 @@ export function useStudioState(settings) {
   }, [getSnapshot, history, imagePan]);
 
   const undo = useCallback(() => {
+    // Capture live edits so a subsequent redo can restore them.
+    history.setCurrent(getSnapshot());
     const prev = history.undo();
-    if (prev) loadState(prev);
-  }, [history, loadState]);
+    if (prev) applyState(prev);
+  }, [history, getSnapshot, applyState]);
 
   const redo = useCallback(() => {
     const next = history.redo();
-    if (next) loadState(next);
-  }, [history, loadState]);
+    if (next) applyState(next);
+  }, [history, applyState]);
 
   const fullState = useMemo(() => getSnapshot(), [getSnapshot]);
 
@@ -286,7 +293,6 @@ export function useStudioState(settings) {
     setBorderColor,
     applyPreset,
     loadState,
-    duplicateDesign,
     clearHeroImage,
     undo,
     redo,

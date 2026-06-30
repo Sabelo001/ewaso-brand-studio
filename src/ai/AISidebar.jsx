@@ -33,15 +33,41 @@ export function AISidebar({ studio }) {
         },
       });
       setResult(response);
+    } catch {
+      setResult({ success: false, error: 'Generation failed. Please try again.' });
     } finally {
       setLoading(false);
     }
   }, [provider, capability, studio]);
 
+  const applyResult = useCallback(() => {
+    if (!result?.success || !result.text) return;
+    switch (capability) {
+      case AI_CAPABILITIES.headline:
+        studio.setHeadlineText(result.text);
+        break;
+      case AI_CAPABILITIES.cta:
+        studio.setCtaText(result.text);
+        break;
+      case AI_CAPABILITIES.caption:
+      case AI_CAPABILITIES.rewrite:
+        studio.setBodyText1(result.text);
+        break;
+      case AI_CAPABILITIES.hashtags:
+        studio.setBodyText2(result.text);
+        break;
+      default:
+        break;
+    }
+  }, [result, capability, studio]);
+
+  const canApply = result?.success && result.text && capability !== AI_CAPABILITIES.layoutSuggestions;
+
   return (
     <div className="space-y-4">
       <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-        AI-assisted copy generation. Provider connections ship in a future release — interfaces are ready.
+        AI-assisted copy generation. The Local Assistant works offline with no API key; OpenAI, Gemini, and Claude
+        connect to the same interface in a future release.
       </p>
 
       <div>
@@ -105,6 +131,15 @@ export function AISidebar({ studio }) {
                   • {s}
                 </p>
               ))}
+              {canApply && (
+                <button
+                  type="button"
+                  onClick={applyResult}
+                  className="mt-3 w-full py-2 bg-[var(--accent-teal)] text-white font-bold tracking-wider uppercase text-[10px] rounded-lg transition hover:brightness-110"
+                >
+                  Apply to Design
+                </button>
+              )}
             </>
           ) : (
             <p>{result.error}</p>
