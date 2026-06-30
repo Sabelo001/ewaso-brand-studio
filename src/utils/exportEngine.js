@@ -9,11 +9,27 @@ import { renderLayoutToCanvas } from './layoutRenderers';
 
 /**
  * High-resolution canvas export engine.
- * Supports PNG and JPG; architecture ready for PDF extension.
+ * Supports PNG, JPG, transparent PNG, 2×/4× scale; architecture ready for PDF.
  */
-export async function exportDesign(state, previewContainerRef, format = 'png') {
-  const w = EXPORT_WIDTH;
-  const h = getExportHeight(state.aspectRatio);
+export async function exportDesign(state, previewContainerRef, options = {}) {
+  const {
+    format = 'png',
+    scale = 1,
+    quality = 0.92,
+    filename = 'ewaso-design',
+    transparent = false,
+    onProgress,
+  } = typeof options === 'string'
+    ? { format: options }
+    : options;
+
+  onProgress?.(0.1);
+
+  const baseW = EXPORT_WIDTH;
+  const baseH = getExportHeight(state.aspectRatio);
+  const w = Math.round(baseW * scale);
+  const h = Math.round(baseH * scale);
+
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
@@ -21,6 +37,10 @@ export async function exportDesign(state, previewContainerRef, format = 'png') {
 
   const previewWidth = previewContainerRef.current?.offsetWidth || 1;
   const previewHeight = previewContainerRef.current?.offsetHeight || 1;
+
+  if (scale !== 1) {
+    ctx.scale(scale, scale);
+  }
 
   const helpers = {
     zoom: state.zoom,
@@ -31,21 +51,31 @@ export async function exportDesign(state, previewContainerRef, format = 'png') {
     previewHeight,
   };
 
-  const drawFooter = createFooterDrawer(ctx, w, state);
+  const drawFooter = createFooterDrawer(ctx, baseW, state);
+
+  onProgress?.(0.35);
 
   const renderCanvas = (img) => {
-    ctx.fillStyle = state.bgColorTheme;
-    ctx.fillRect(0, 0, w, h);
-    drawDecorations(ctx, state.decoration, w, h);
+    if (!transparent) {
+      ctx.fillStyle = state.bgColorTheme;
+      ctx.fillRect(0, 0, baseW, baseH);
+    } else {
+      ctx.clearRect(0, 0, baseW, baseH);
+    }
 
-    renderLayoutToCanvas(ctx, w, h, img, state, drawFooter, helpers);
-    drawBorderFrame(ctx, w, h, state.borderWidth, state.borderColor);
+    drawDecorations(ctx, state.decoration, baseW, baseH);
+    renderLayoutToCanvas(ctx, baseW, baseH, img, state, drawFooter, helpers);
+    drawBorderFrame(ctx, baseW, baseH, state.borderWidth, state.borderColor);
 
-    const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
-    const quality = format === 'jpg' ? 0.92 : undefined;
-    const ext = format === 'jpg' ? 'jpg' : 'png';
-    const dataUrl = canvas.toDataURL(mimeType, quality);
-    downloadDataUrl(dataUrl, `Ewaso_Brand_Studio_${state.layoutId}.${ext}`);
+    onProgress?.(0.85);
+
+    const isJpg = format === 'jpg';
+    const mimeType = isJpg ? 'image/jpeg' : 'image/png';
+    const dataUrl = canvas.toDataURL(mimeType, isJpg ? quality : undefined);
+    const ext = isJpg ? 'jpg' : 'png';
+    downloadDataUrl(dataUrl, `${filename}.${ext}`);
+
+    onProgress?.(1);
   };
 
   if (state.imageSrc && state.heroType === 'image') {
