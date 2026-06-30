@@ -1,6 +1,6 @@
 import { BRAND } from './brand';
 
-/** Studio chrome / shell UI tokens (sidebar, workspace) */
+/** Studio chrome / shell UI tokens (sidebar, workspace) — mirrors CSS variables */
 export const STUDIO_THEME = {
   shell: {
     bg: '#0E0E11',
@@ -25,5 +25,14 @@ export const STUDIO_THEME = {
   label: {
     gold: BRAND.colors.goldLight,
     muted: '#9CA3AF',
+  },
+  shadows: {
+    panel: '0 4px 6px -1px rgba(0, 0, 0, 0.2)',
+    canvas: BRAND.shadows.canvas,
+  },
+  animation: {
+    fast: '150ms',
+    normal: '200ms',
+    slow: '300ms',
   },
 };

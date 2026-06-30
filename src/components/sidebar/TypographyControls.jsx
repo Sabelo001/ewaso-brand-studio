@@ -1,3 +1,5 @@
+import { SectionLabel } from '../ui';
+
 export function TypographyControls({
   metaText,
   setMetaText,
@@ -11,13 +13,11 @@ export function TypographyControls({
   setCtaText,
 }) {
   const inputClass =
-    'w-full bg-[#1C1C24] border border-[#2B2B33] rounded-lg px-3 py-2 text-white focus:border-[#C9A84C] focus:outline-none';
+    'w-full bg-[var(--panel-bg)] border border-[var(--panel-border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:border-[var(--accent-gold)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-gold)] transition';
 
   return (
     <div className="mb-8 space-y-3">
-      <label className="block text-xs font-bold tracking-wider text-[#C9A84C] uppercase mb-1">
-        2. Typography Block
-      </label>
+      <SectionLabel step="3">Typography</SectionLabel>
       <input
         type="text"
         value={metaText}
@@ -51,7 +51,7 @@ export function TypographyControls({
         value={ctaText}
         onChange={(e) => setCtaText(e.target.value)}
         placeholder="Call to Action (Optional)"
-        className="w-full bg-[#1B4D3E]/30 border border-[#1B4D3E] rounded-lg px-3 py-2 text-xs text-white focus:border-[#C9A84C] focus:outline-none font-bold"
+        className="w-full bg-[var(--accent-teal)]/30 border border-[var(--accent-teal)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] focus:border-[var(--accent-gold)] focus:outline-none font-bold"
       />
     </div>
   );

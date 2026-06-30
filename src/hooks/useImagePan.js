@@ -1,6 +1,15 @@
 import { useCallback, useState } from 'react';
 
-/** Image pan/zoom drag engine for canvas preview */
+const SNAP_THRESHOLD = 12;
+
+function snapValue(value, targets, threshold = SNAP_THRESHOLD) {
+  for (const target of targets) {
+    if (Math.abs(value - target) < threshold) return target;
+  }
+  return value;
+}
+
+/** Image pan/zoom drag engine for canvas preview with snap guides */
 export function useImagePan() {
   const [zoom, setZoom] = useState(1.1);
   const [panX, setPanX] = useState(0);
@@ -20,8 +29,10 @@ export function useImagePan() {
   const handleDragMove = useCallback(
     (clientX, clientY) => {
       if (isDragging) {
-        setPanX(clientX - dragStart.x);
-        setPanY(clientY - dragStart.y);
+        const rawX = clientX - dragStart.x;
+        const rawY = clientY - dragStart.y;
+        setPanX(snapValue(rawX, [0]));
+        setPanY(snapValue(rawY, [0]));
       }
     },
     [isDragging, dragStart]

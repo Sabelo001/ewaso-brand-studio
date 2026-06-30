@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BRAND } from '../theme';
 import { getPresetPatch } from '../layouts/presets';
+import { resolveLayoutId } from '../layouts';
 import { createPlaceholderImage } from '../utils/imageUtils';
+import { sanitizeText } from '../utils/validation';
 import { useBrandFonts } from './useBrandFonts';
 import { useImagePan } from './useImagePan';
 import { useAutosave, loadSavedState, PERSISTED_FIELDS } from './useAutosave';
+import { useHistory } from './useHistory';
 
-function buildInitialState() {
+function buildInitialState(settings) {
   const saved = loadSavedState();
   const defaults = {
     layoutId: 'editorial',
-    aspectRatio: '9:16',
+    aspectRatio: settings?.defaultAspectRatio ?? '9:16',
     bgColorTheme: BRAND.colors.primaryTeal,
     heroType: 'image',
     footerStyle: 'full',
@@ -33,16 +36,45 @@ function buildInitialState() {
   };
 
   if (!saved) return defaults;
-  return { ...defaults, ...saved };
+  return {
+    ...defaults,
+    ...saved,
+    layoutId: resolveLayoutId(saved.layoutId ?? defaults.layoutId),
+  };
+}
+
+function applyPatch(setters, patch) {
+  if (patch.layoutId) setters.setLayoutId(patch.layoutId);
+  if (patch.aspectRatio) setters.setAspectRatio(patch.aspectRatio);
+  if (patch.heroType) setters.setHeroType(patch.heroType);
+  if (patch.bgColorTheme) setters.setBgColorTheme(patch.bgColorTheme);
+  if (patch.footerStyle) setters.setFooterStyle(patch.footerStyle);
+  if (patch.decoration) setters.setDecoration(patch.decoration);
+  if (patch.headerColor) setters.setHeaderColor(patch.headerColor);
+  if (patch.headlineColor) setters.setHeadlineColor(patch.headlineColor);
+  if (patch.bodyColor) setters.setBodyColor(patch.bodyColor);
+  if (patch.borderWidth != null) setters.setBorderWidth(patch.borderWidth);
+  if (patch.borderColor) setters.setBorderColor(patch.borderColor);
+  if (patch.metaText != null) setters.setMetaText(sanitizeText(patch.metaText, 200));
+  if (patch.headlineText != null) setters.setHeadlineText(sanitizeText(patch.headlineText, 300));
+  if (patch.bodyText1 != null) setters.setBodyText1(sanitizeText(patch.bodyText1, 400));
+  if (patch.bodyText2 != null) setters.setBodyText2(sanitizeText(patch.bodyText2, 400));
+  if (patch.ctaText != null) setters.setCtaText(sanitizeText(patch.ctaText, 120));
+  if (patch.website != null) setters.setWebsite(sanitizeText(patch.website, 120));
+  if (patch.phone != null) setters.setPhone(sanitizeText(patch.phone, 40));
+  if (patch.email != null) setters.setEmail(sanitizeText(patch.email, 120));
+  if (patch.whatsapp != null) setters.setWhatsapp(sanitizeText(patch.whatsapp, 40));
+  if (patch.imageSrc) setters.setImageSrc(patch.imageSrc);
 }
 
 /** Central studio state — single source of truth for the editor */
-export function useStudioState() {
+export function useStudioState(settings) {
   useBrandFonts();
 
-  const initial = useMemo(() => buildInitialState(), []);
+  const initial = useMemo(() => buildInitialState(settings), [settings]);
   const imagePan = useImagePan();
   const { scheduleSave } = useAutosave();
+  const history = useHistory(initial);
 
   const [layoutId, setLayoutId] = useState(initial.layoutId);
   const [aspectRatio, setAspectRatio] = useState(initial.aspectRatio);
@@ -69,7 +101,33 @@ export function useStudioState() {
   const [borderWidth, setBorderWidth] = useState(initial.borderWidth);
   const [borderColor, setBorderColor] = useState(initial.borderColor);
 
-  // Restore pan/zoom from saved state
+  const setters = useMemo(
+    () => ({
+      setLayoutId,
+      setAspectRatio,
+      setBgColorTheme,
+      setHeroType,
+      setFooterStyle,
+      setDecoration,
+      setImageSrc,
+      setMetaText,
+      setHeadlineText,
+      setBodyText1,
+      setBodyText2,
+      setCtaText,
+      setWebsite,
+      setPhone,
+      setEmail,
+      setWhatsapp,
+      setHeaderColor,
+      setHeadlineColor,
+      setBodyColor,
+      setBorderWidth,
+      setBorderColor,
+    }),
+    []
+  );
+
   useEffect(() => {
     const saved = loadSavedState();
     if (saved) {
@@ -77,25 +135,13 @@ export function useStudioState() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Default placeholder image if none saved
   useEffect(() => {
     if (!imageSrc) {
       setImageSrc(createPlaceholderImage());
     }
   }, [imageSrc]);
 
-  const applyPreset = useCallback((preset) => {
-    const patch = getPresetPatch(preset);
-    if (!patch) return;
-    if (patch.layoutId) setLayoutId(patch.layoutId);
-    if (patch.heroType) setHeroType(patch.heroType);
-    if (patch.bgColorTheme) setBgColorTheme(patch.bgColorTheme);
-    if (patch.headerColor) setHeaderColor(patch.headerColor);
-    if (patch.headlineColor) setHeadlineColor(patch.headlineColor);
-    if (patch.bodyColor) setBodyColor(patch.bodyColor);
-  }, []);
-
-  const fullState = useMemo(
+  const getSnapshot = useCallback(
     () => ({
       layoutId,
       aspectRatio,
@@ -146,6 +192,51 @@ export function useStudioState() {
     ]
   );
 
+  const applyPreset = useCallback(
+    (presetId) => {
+      history.pushSnapshot(getSnapshot());
+      const patch = getPresetPatch(presetId);
+      if (!patch) return;
+      applyPatch(setters, patch);
+      imagePan.resetPan();
+    },
+    [getSnapshot, history, setters, imagePan]
+  );
+
+  const loadState = useCallback(
+    (state) => {
+      history.pushSnapshot(getSnapshot());
+      applyPatch(setters, state);
+      if (state.zoom != null) imagePan.setZoom(state.zoom);
+      if (state.panX != null) imagePan.setPanX(state.panX);
+      if (state.panY != null) imagePan.setPanY(state.panY);
+      if (state.imgOpacity != null) imagePan.setImgOpacity(state.imgOpacity);
+    },
+    [getSnapshot, history, setters, imagePan]
+  );
+
+  const duplicateDesign = useCallback(() => {
+    history.pushSnapshot(getSnapshot());
+  }, [getSnapshot, history]);
+
+  const clearHeroImage = useCallback(() => {
+    history.pushSnapshot(getSnapshot());
+    setImageSrc(createPlaceholderImage());
+    imagePan.resetPan();
+  }, [getSnapshot, history, imagePan]);
+
+  const undo = useCallback(() => {
+    const prev = history.undo();
+    if (prev) loadState(prev);
+  }, [history, loadState]);
+
+  const redo = useCallback(() => {
+    const next = history.redo();
+    if (next) loadState(next);
+  }, [history, loadState]);
+
+  const fullState = useMemo(() => getSnapshot(), [getSnapshot]);
+
   useEffect(() => {
     scheduleSave(fullState);
   }, [fullState, scheduleSave]);
@@ -194,8 +285,16 @@ export function useStudioState() {
     borderColor,
     setBorderColor,
     applyPreset,
+    loadState,
+    duplicateDesign,
+    clearHeroImage,
+    undo,
+    redo,
+    canUndo: history.canUndo,
+    canRedo: history.canRedo,
     imagePan,
     exportState: fullState,
+    getSnapshot,
   };
 }
 
