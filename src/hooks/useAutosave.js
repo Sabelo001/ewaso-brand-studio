@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
+import { readStorage, writeStorage, STORAGE_KEYS } from '../storage/localStorage';
 
-const STORAGE_KEY = 'ewaso-brand-studio-state';
+const LEGACY_KEY = 'ewaso-brand-studio-state';
 const DEBOUNCE_MS = 500;
 
 /** Fields persisted to localStorage */
@@ -32,11 +33,24 @@ export const PERSISTED_FIELDS = [
   'borderColor',
 ];
 
+function migrateLegacyState() {
+  try {
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (!legacy) return null;
+    const parsed = JSON.parse(legacy);
+    writeStorage(STORAGE_KEYS.studioState, parsed);
+    localStorage.removeItem(LEGACY_KEY);
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 export function loadSavedState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
+    const stored = readStorage(STORAGE_KEYS.studioState, null);
+    if (stored) return stored;
+    return migrateLegacyState();
   } catch {
     return null;
   }
@@ -48,16 +62,12 @@ export function saveState(state) {
     for (const key of PERSISTED_FIELDS) {
       if (state[key] !== undefined) payload[key] = state[key];
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    writeStorage(STORAGE_KEYS.studioState, payload);
   } catch {
     // Quota exceeded or private browsing — fail silently
   }
 }
 
-/**
- * Debounced autosave hook.
- * Call scheduleSave whenever studio state changes.
- */
 export function useAutosave() {
   const timerRef = useRef(null);
 
